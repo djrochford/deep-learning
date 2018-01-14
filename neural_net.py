@@ -23,6 +23,10 @@ class _Layer:
 
   def forward(self, inputs):
     assert inputs.shape[0] == self.weights.shape[1]
+    assert self.inputs is None
+    assert self.linear_output is None
+    assert self.weights_gradient is None
+    assert self.bias_gradient is None
     self.inputs = inputs
     self.linear_output = np.dot(self.weights, self.inputs) + self.bias
     return self.activation(self.linear_output)
@@ -30,19 +34,27 @@ class _Layer:
   def backward(self, output_gradient):
     assert not self.inputs is None
     assert not self.linear_output is None
+    assert self.weights_gradient is None
+    assert self.bias_gradient is None
     assert output_gradient.shape[0] == self.linear_output.shape[0]
     linear_gradient = output_gradient * self.backward_activation(self.linear_output)
     m = self.inputs.shape[1]
     self.weights_gradient = (1/m) * np.dot(linear_gradient, self.inputs.T)
     self.bias_gradient = (1/m) * np.sum(linear_gradient, axis=1, keepdims=True)
+    self.inputs = None
+    self.linear_output = None
     input_gradient = np.dot(self.weights.T, linear_gradient)
     return input_gradient
 
   def update_parameters(self, learning_rate):
+    assert self.inputs is None
+    assert self.linear_output is None
     assert not self.weights_gradient is None
     assert not self.bias_gradient is None
     self.weights = self.weights - learning_rate * self.weights_gradient
     self.bias = self.bias - learning_rate * self.bias_gradient
+    self.weights_gradient = None
+    self.bias_gradient = None
 
 class Neural_Net:
 
@@ -74,19 +86,22 @@ class Neural_Net:
     return output
 
   def _calculate_cost(self, output, Y):
-    assert output.shape == Y.shape
+    assert(output.shape == Y.shape)
     m = Y.shape[1]
     cost = (-1/m) * np.dot(np.log(output), Y.T) + np.dot(np.log(1-output), (1-Y).T)
     cost = np.squeeze(cost)
     return cost
 
   def _backward(self, output, Y):
-    output_gradient = - ((Y / output) - ((1-Y) / (1-output)))
+    output_gradient = - ((Y / output) - ((1-Y) / (1-output))) #using (derivative of) cross entropy loss
     for i in range(len(self.layers) - 1, 0, -1):
       output_gradient = self.layers[i].backward(output_gradient)
 
   def _update_parameters(self):
-    for layer in islice(layers, 1, None):
+    parameters = [None]
+    for layer in islice(self.layers, 1, None):
       layer.update_parameters(self.learning_rate)
+      parameters.append((layer.weights, layer.bias))
+    self.parameters = parameters
 
 

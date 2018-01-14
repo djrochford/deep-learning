@@ -62,9 +62,11 @@ class Test_Layer(unittest.TestCase):
     my_layer.backward(np.array([[0.5], [4], [-1]]))
     old_weights = my_layer.weights
     old_bias = my_layer.bias
+    expected_weights = old_weights - 0.1 * my_layer.weights_gradient
+    expected_bias = old_bias - 0.1 * my_layer.bias_gradient
     my_layer.update_parameters(0.1)
-    self.assertTrue(np.array_equal(my_layer.weights, old_weights - 0.1 * my_layer.weights_gradient))
-    self.assertTrue(np.array_equal(my_layer.bias, old_bias - 0.1 * my_layer.bias_gradient))
+    self.assertTrue(np.array_equal(my_layer.weights, expected_weights))
+    self.assertTrue(np.array_equal(my_layer.bias, expected_bias))
 
 class Test_Network(unittest.TestCase):
 
@@ -130,5 +132,26 @@ class Test_Network(unittest.TestCase):
     self.assertTrue(np.array_equal(second_bias_gradient, my_network.layers[2].bias_gradient))
     self.assertTrue(np.array_equal(first_weights_gradient, my_network.layers[1].weights_gradient))
     self.assertTrue(np.array_equal(first_bias_gradient, my_network.layers[1].bias_gradient))
+
+  def test_update_parameters(self):
+    my_network = Neural_Net(10, [('relu', 5)] * 3 + [('sigmoid', 1)])
+    inputs = [[1, 5], [2, 0], [3, -2], [-4, 1], [0.5, 0], [-0.2, 5], [2, -1], [2, -0.43], [0, 1.12], [0, -2]]
+    output = my_network._forward(np.array(inputs))
+    Y = np.array([[1, 0]])
+    my_network._backward(output, Y)
+    old_parameters = my_network.parameters
+    expected_parameters = [None]
+    layers = my_network.layers
+    for i in range(1, len(my_network.layers)):
+      updated_weights = old_parameters[i][0] - 0.1 * layers[i].weights_gradient
+      updated_bias = old_parameters[i][1] - 0.1 * layers[i].bias_gradient
+      expected_parameters.append((updated_weights, updated_bias))
+    my_network._update_parameters()
+    for i in range(1, len(my_network.layers)):
+      self.assertTrue(np.array_equal(expected_parameters[i][0], my_network.parameters[i][0]))
+      self.assertTrue(np.array_equal(expected_parameters[i][1], my_network.parameters[i][1]))
+
+
+
 
 unittest.main()
